@@ -146,7 +146,7 @@ void setup() {
     gpioInit();
     ledInit();
 
-    SPI.begin(PIN_EPD_SCK, 14, PIN_EPD_MOSI, PIN_EPD_CS);
+    SPI.begin(PIN_EPD_SCK, -1, PIN_EPD_MOSI, -1);
     SPI.beginTransaction(SPISettings(2000000, MSBFIRST, SPI_MODE0));
 
     bool forcePortal = false;
