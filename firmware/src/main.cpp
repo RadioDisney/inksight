@@ -2,6 +2,7 @@
 // https://github.com/datascale-ai/inksight
 
 #include <Arduino.h>
+#include <SPI.h>
 #include <WiFi.h>
 
 #include "config.h"
@@ -144,6 +145,9 @@ void setup() {
 
     gpioInit();
     ledInit();
+
+    SPI.begin(PIN_EPD_SCK, 14, PIN_EPD_MOSI, PIN_EPD_CS);
+    SPI.beginTransaction(SPISettings(2000000, MSBFIRST, SPI_MODE0));
 
     bool forcePortal = false;
     if (digitalRead(PIN_CFG_BTN) == LOW) {

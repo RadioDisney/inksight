@@ -1,43 +1,42 @@
 #include "epd_driver.h"
 #include "config.h"
+#include <esp_debug_helpers.h>
 
-#if defined(EPD_PANEL_42_SSD1683_BW) || defined(EPD_PANEL_42_DKE_RY683) || defined(EPD_PANEL_42_GDEM042F52)
+
+#include <SPI.h>
+
+#if defined(EPD_PANEL_42_SSD1683_BW) || defined(EPD_PANEL_42_DKE_RY683) || defined(EPD_PANEL_42_GDEM042F52) || defined(EPD_PANEL_42_GXEPD2_M01)
 
 // ── Software SPI (bit-bang) for 4.2" SSD1683 BW panels ──
 // Avoids Busy Timeout on ESP32-C3 with non-default pins; no GxEPD2 dependency.
 
 static void spiWriteByte(uint8_t data) {
-    for (int i = 0; i < 8; i++) {
-        digitalWrite(PIN_EPD_MOSI, (data & 0x80) ? HIGH : LOW);
-        data <<= 1;
-        digitalWrite(PIN_EPD_SCK, HIGH);
-        digitalWrite(PIN_EPD_SCK, LOW);
-    }
+    SPI.transfer(data);
 }
 
 static void epdSendCommand(uint8_t cmd) {
     digitalWrite(PIN_EPD_DC, LOW);   // DC low = command
-    digitalWrite(PIN_EPD_CS, LOW);
+    // digitalWrite(PIN_EPD_CS, LOW);
     spiWriteByte(cmd);
-    digitalWrite(PIN_EPD_CS, HIGH);
+    // digitalWrite(PIN_EPD_CS, HIGH);
 }
 
 static void epdSendData(uint8_t data) {
     digitalWrite(PIN_EPD_DC, HIGH);  // DC high = data
-    digitalWrite(PIN_EPD_CS, LOW);
+    // digitalWrite(PIN_EPD_CS, LOW);
     spiWriteByte(data);
-    digitalWrite(PIN_EPD_CS, HIGH);
+    // digitalWrite(PIN_EPD_CS, HIGH);
 }
 
 static void epdWaitBusy(unsigned long maxMs = 0) {
     unsigned long t0 = millis();
     unsigned long timeoutMs = maxMs > 0 ? maxMs :
-#if defined(EPD_PANEL_42_DKE_RY683) || defined(EPD_PANEL_42_GDEM042F52)
+#if defined(EPD_PANEL_42_DKE_RY683) || defined(EPD_PANEL_42_GDEM042F52) || defined(EPD_PANEL_42_GXEPD2_M01)
         45000;
 #else
         10000;
 #endif
-#if defined(EPD_PANEL_42_DKE_RY683) || defined(EPD_PANEL_42_GDEM042F52)
+#if defined(EPD_PANEL_42_DKE_RY683) || defined(EPD_PANEL_42_GDEM042F52) || defined(EPD_PANEL_42_GXEPD2_M01)
     while (digitalRead(PIN_EPD_BUSY) == LOW) {
 #else
     while (digitalRead(PIN_EPD_BUSY) == HIGH) {
@@ -61,6 +60,19 @@ static void epdReset() {
 #elif defined(EPD_PANEL_42_DKE_RY683)
     digitalWrite(PIN_EPD_RST, LOW);  delay(10);
     digitalWrite(PIN_EPD_RST, HIGH); delay(10);
+#elif defined(EPD_PANEL_42_GXEPD2_M01)
+    digitalWrite(PIN_EPD_RST, LOW);
+    delay(2);
+    digitalWrite(PIN_EPD_RST, HIGH);
+    delay(20);
+    digitalWrite(PIN_EPD_RST, LOW);
+    delay(2);
+    digitalWrite(PIN_EPD_RST, HIGH);
+    delay(20);   
+    digitalWrite(PIN_EPD_RST, LOW);
+    delay(2);
+    digitalWrite(PIN_EPD_RST, HIGH);
+    delay(20); 
 #else
     digitalWrite(PIN_EPD_RST, HIGH); delay(100);
     digitalWrite(PIN_EPD_RST, LOW);  delay(2);
@@ -204,6 +216,45 @@ void epdInit() {
 
     epdSendCommand(0x04);
     epdWaitBusy();
+#elif defined(EPD_PANEL_42_GXEPD2_M01)
+
+    esp_backtrace_print(10);
+    Serial.println("[EPD-init] Initializing GPIO and SPI..................................");
+
+     /* EPD hardware init start */
+    epdReset();
+	epdSendCommand(0x01);			//POWER SETTING
+	epdSendData (0x03);
+	epdSendData (0x00);       //VGH=20V,VGL=-20V
+	epdSendData (0x2b);		//VDH=15V															 
+	epdSendData (0x2b);		//VDL=-15V
+	// epdSendData (0x13);
+
+	epdSendCommand(0x06);         //booster soft start
+	epdSendData (0x17);		//A
+	epdSendData (0x17);		//B
+	epdSendData (0x17);		//C 
+
+	epdSendCommand(0x04);
+	epdWaitBusy();
+
+	epdSendCommand(0x00);			//panel setting
+	epdSendData(0xbf);		//KW-3f   KWR-2F	BWROTP 0f	BWOTP 1f
+
+	epdSendCommand(0x30);			//PLL setting
+	epdSendData (0x3c);      	//100hz 
+
+	epdSendCommand(0x61);			//resolution setting
+	epdSendData (0x01);		//400
+	epdSendData (0x90);     	 
+	epdSendData (0x01);		//300
+	epdSendData (0x2c);
+
+	epdSendCommand(0x82);			//vcom_DC setting
+	epdSendData (0x12);
+
+	epdSendCommand(0X50);			//VCOM AND DATA INTERVAL SETTING			
+	epdSendData(0x97);
 #else
     epdReset();
     epdWaitBusy();
@@ -297,6 +348,41 @@ void epdInitFast() {
     epdSendCommand(0xA5);
     epdSendData(0x00);
     epdWaitBusy();
+#elif defined(EPD_PANEL_42_GXEPD2_M01)
+     /* EPD hardware init start */
+    epdReset();
+	epdSendCommand(0x01);			//POWER SETTING
+	epdSendData (0x03);
+	epdSendData (0x00);       //VGH=20V,VGL=-20V
+	epdSendData (0x2b);		//VDH=15V															 
+	epdSendData (0x2b);		//VDL=-15V
+	epdSendData (0x13);
+
+	epdSendCommand(0x06);         //booster soft start
+	epdSendData (0x17);		//A
+	epdSendData (0x17);		//B
+	epdSendData (0x17);		//C 
+
+	epdSendCommand(0x04);
+	epdWaitBusy();
+
+	epdSendCommand(0x00);			//panel setting
+	epdSendData(0x3f);		//KW-3f   KWR-2F	BWROTP 0f	BWOTP 1f
+
+	epdSendCommand(0x30);			//PLL setting
+	epdSendData (0x3c);      	//100hz 
+
+	epdSendCommand(0x61);			//resolution setting
+	epdSendData (0x01);		//400
+	epdSendData (0x90);     	 
+	epdSendData (0x01);		//300
+	epdSendData (0x2c);
+
+	epdSendCommand(0x82);			//vcom_DC setting
+	epdSendData (0x12);
+
+	epdSendCommand(0X50);			//VCOM AND DATA INTERVAL SETTING			
+	epdSendData(0x97);
 #else
     epdReset();
     epdWaitBusy();
@@ -363,12 +449,41 @@ static void epdPowerOff() {
 }
 #endif
 
+void ClearFrame(void) {
+    epdSendCommand(RESOLUTION_SETTING);
+    epdSendData(EPD_WIDTH >> 8);
+    epdSendData(EPD_WIDTH & 0xff);
+    epdSendData(EPD_HEIGHT >> 8);        
+    epdSendData(EPD_HEIGHT & 0xff);
+
+    epdSendCommand(DATA_START_TRANSMISSION_1);           
+    delay(2);
+    for(int i = 0; i < EPD_WIDTH / 8 * EPD_HEIGHT; i++) {
+        epdSendData(0xFF);  
+    }  
+    delay(2);
+    epdSendCommand(DATA_START_TRANSMISSION_2);           
+    delay(2);
+    for(int i = 0; i < EPD_WIDTH / 8 * EPD_HEIGHT; i++) {
+        epdSendData(0xFF);  
+    }  
+    delay(2);
+}
+
+void DisplayFrame(void) {
+    // SetLut();
+    epdSendCommand(DISPLAY_REFRESH); 
+    delay(100);
+    epdWaitBusy();
+}
+
 static void epdSend2bppAndRefresh(const uint8_t *buf2bpp) {
     for (int attempt = 0; attempt < 3; attempt++) {
         unsigned long t0 = millis();
         Serial.printf("[EPD] attempt %d start BUSY=%d\n", attempt, digitalRead(PIN_EPD_BUSY));
         epdInit();
         Serial.printf("[EPD] init done %lums BUSY=%d\n", millis()-t0, digitalRead(PIN_EPD_BUSY));
+        ClearFrame();
 #if defined(EPD_PANEL_42_GDEM042F52)
         epdWriteMapped2bpp(buf2bpp);
 #else
@@ -422,6 +537,12 @@ void epdDisplay(const uint8_t *image) {
 #else
     epdInit();
 
+    ClearFrame();
+
+    DisplayFrame();
+
+    Serial.println("[EPD] ***********************************************");
+
     int w = W / 8;
 
     epdSendCommand(0x24);  // Write Black/White RAM
@@ -442,7 +563,7 @@ void epdDisplay(const uint8_t *image) {
 }
 
 void epdDisplay2bpp(const uint8_t *image2bpp) {
-#if defined(EPD_PANEL_42_DKE_RY683) || defined(EPD_PANEL_42_GDEM042F52)
+#if defined(EPD_PANEL_42_DKE_RY683) || defined(EPD_PANEL_42_GDEM042F52) || defined(EPD_PANEL_42_GXEPD2_M01)
     epdSend2bppAndRefresh(image2bpp);
 #else
     (void)image2bpp;
