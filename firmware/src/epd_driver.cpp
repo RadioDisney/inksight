@@ -565,7 +565,7 @@ static void epdSend2bppAndRefresh(const uint8_t *buf2bpp) {
         Serial.printf("[EPD] attempt %d start BUSY=%d\n", attempt, digitalRead(PIN_EPD_BUSY));
         epdInit();
         Serial.printf("[EPD] init done %lums BUSY=%d\n", millis()-t0, digitalRead(PIN_EPD_BUSY));
-        ClearFrame();
+        // ClearFrame();
 #if defined(EPD_PANEL_42_GDEM042F52)
         epdWriteMapped2bpp(buf2bpp);
 #else
@@ -619,9 +619,7 @@ void epdDisplay(const uint8_t *image) {
 #else
     epdInit();
 
-    ClearFrame();
-
-    DisplayFrame();
+    // ClearFrame();
 
     Serial.println("[EPD] ***********************************************");
 
@@ -637,10 +635,15 @@ void epdDisplay(const uint8_t *image) {
         for (int i = 0; i < w; i++)
             epdSendData(image[i + j * w]);
 
+#if defined(EPD_PANEL_42_GXEPD2_M01)
+    DisplayFrame();
+#else
     epdSendCommand(0x22);  // Display Update Control 2
     epdSendData(0xF7);     //   Full update sequence
     epdSendCommand(0x20);  // Activate Display Update Sequence
     epdWaitBusy();
+#endif
+
 #endif
 }
 
