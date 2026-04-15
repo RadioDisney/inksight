@@ -552,6 +552,33 @@ void ClearFrame(void) {
     delay(2);
 }
 
+void epdSetPartialWindow(const unsigned char* buffer_black, int x, int y, int w, int l) {
+    epdSendCommand(PARTIAL_IN);
+    epdSendCommand(PARTIAL_WINDOW);
+    epdSendData(x >> 8);
+    epdSendData(x & 0xf8);     // x should be the multiple of 8, the last 3 bit will always be ignored
+    epdSendData(((x & 0xf8) + w  - 1) >> 8);
+    epdSendData(((x & 0xf8) + w  - 1) | 0x07);
+    epdSendData(y >> 8);        
+    epdSendData(y & 0xff);
+    epdSendData((y + l - 1) >> 8);        
+    epdSendData((y + l - 1) & 0xff);
+    epdSendData(0x01);         // Gates scan both inside and outside of the partial window. (default) 
+    delay(2);
+    epdSendCommand(DATA_START_TRANSMISSION_2);
+    if (buffer_black != NULL) {
+        for(int i = 0; i < w  / 8 * l; i++) {
+            epdSendData(buffer_black[i]);  
+        }  
+    } else {
+        for(int i = 0; i < w  / 8 * l; i++) {
+            epdSendData(0x00);  
+        }  
+    }
+    delay(2);
+    epdSendCommand(PARTIAL_OUT);  
+}
+
 void DisplayFrame(void) {
     epdSetLut();
     epdSendCommand(DISPLAY_REFRESH); 
@@ -616,6 +643,9 @@ void epdDisplay(const uint8_t *image) {
         }
     }
     epdSend2bppAndRefresh(colorBuf);
+#elif defined(EPD_PANEL_42_GXEPD2_M01)
+    epdInit();
+    epdSetPartialWindow(image, 0, 0, W, H);
 #else
     epdInit();
 
@@ -634,6 +664,7 @@ void epdDisplay(const uint8_t *image) {
     for (int j = 0; j < H; j++)
         for (int i = 0; i < w; i++)
             epdSendData(image[i + j * w]);
+#endif
 
 #if defined(EPD_PANEL_42_GXEPD2_M01)
     DisplayFrame();
@@ -644,7 +675,6 @@ void epdDisplay(const uint8_t *image) {
     epdWaitBusy();
 #endif
 
-#endif
 }
 
 void epdDisplay2bpp(const uint8_t *image2bpp) {
