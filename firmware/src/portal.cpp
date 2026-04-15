@@ -239,6 +239,7 @@ void startCaptivePortal() {
             Serial.printf("[PAIR] local pair code: %s\n", pairCode.c_str());
             String response = String("{\"ok\":true,\"pair_code\":\"") + pairCode + "\"}";
             Serial.printf("Sending response: %s\n", response.c_str());
+            webServer.sendHeader("Access-Control-Allow-Origin", "*");
             webServer.send(200, "application/json", response);
 
             pendingRestart  = true;
@@ -262,9 +263,18 @@ void startCaptivePortal() {
             else                                   msg = "连接超时，请重试";
             
             Serial.printf("Sending error response: %s\n", msg.c_str());
+            webServer.sendHeader("Access-Control-Allow-Origin", "*");
             webServer.send(200, "application/json",
                            "{\"ok\":false,\"msg\":\"" + msg + "\"}");
         }
+    });
+
+    // ── Route: CORS preflight for save_wifi ─────────────────
+    webServer.on("/save_wifi", HTTP_OPTIONS, []() {
+        webServer.sendHeader("Access-Control-Allow-Origin", "*");
+        webServer.sendHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+        webServer.sendHeader("Access-Control-Allow-Headers", "Content-Type");
+        webServer.send(204);
     });
 
     // ── Route: Save user config ─────────────────────────────
@@ -280,6 +290,7 @@ void startCaptivePortal() {
         }
         saveUserConfig(config);
         Serial.println("Config saved to NVS");
+        webServer.sendHeader("Access-Control-Allow-Origin", "*");
         webServer.send(200, "application/json", "{\"ok\":true}");
 
         // Post config to backend if connected
@@ -294,36 +305,82 @@ void startCaptivePortal() {
         Serial.println("Restart scheduled in 30 seconds (or earlier via /restart)");
     });
 
+    // ── Route: CORS preflight for save_config ───────────────
+    webServer.on("/save_config", HTTP_OPTIONS, []() {
+        webServer.sendHeader("Access-Control-Allow-Origin", "*");
+        webServer.sendHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+        webServer.sendHeader("Access-Control-Allow-Headers", "Content-Type");
+        webServer.send(204);
+    });
+
     // ── Route: Manual restart ───────────────────────────────
     webServer.on("/restart", HTTP_POST, []() {
         Serial.println("\n--- /restart Request Received ---");
+        webServer.sendHeader("Access-Control-Allow-Origin", "*");
         webServer.send(200, "application/json", "{\"ok\":true}");
         Serial.println("Manual restart requested, restarting in 1 second...");
         delay(1000);
         ESP.restart();
     });
 
+    // ── Route: CORS preflight for restart ──────────────────
+    webServer.on("/restart", HTTP_OPTIONS, []() {
+        webServer.sendHeader("Access-Control-Allow-Origin", "*");
+        webServer.sendHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+        webServer.sendHeader("Access-Control-Allow-Headers", "Content-Type");
+        webServer.send(204);
+    });
+
     webServer.on("/reset_portal", HTTP_POST, []() {
         Serial.println("\n--- /reset_portal Request Received ---");
         resetPortalProvisioningState();
+        webServer.sendHeader("Access-Control-Allow-Origin", "*");
         webServer.send(200, "application/json", "{\"ok\":true}");
         Serial.println("Portal reset requested, staying in provisioning mode");
     });
 
+    // ── Route: CORS preflight for reset_portal ─────────────
+    webServer.on("/reset_portal", HTTP_OPTIONS, []() {
+        webServer.sendHeader("Access-Control-Allow-Origin", "*");
+        webServer.sendHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+        webServer.sendHeader("Access-Control-Allow-Headers", "Content-Type");
+        webServer.send(204);
+    });
+
+    // ── Route: Captive portal detection endpoints ──────────
+    // Handle various captive portal detection URLs (204 No Content)
+    auto handleCaptivePortalDetection = []() {
+        webServer.send(204);
+    };
+
+    webServer.on("/generate_204", HTTP_GET, handleCaptivePortalDetection);
+    webServer.on("/gen_204", HTTP_GET, handleCaptivePortalDetection);
+    webServer.on("/hotspot-detect.html", HTTP_GET, handleCaptivePortalDetection);
+    webServer.on("/canonical.html", HTTP_GET, handleCaptivePortalDetection);
+    webServer.on("/success.txt", HTTP_GET, handleCaptivePortalDetection);
+    webServer.on("/ncsi.txt", HTTP_GET, handleCaptivePortalDetection);
+
+    // ── Route: Redirect for common resource requests ───────
+    auto handleFavicon = []() {
+        webServer.send(404);
+    };
+
+    webServer.on("/favicon.ico", HTTP_GET, handleFavicon);
+    webServer.on("/apple-touch-icon.png", HTTP_GET, handleFavicon);
+    webServer.on("/apple-touch-icon-precomposed.png", HTTP_GET, handleFavicon);
+
     // ── Captive portal redirect for all other requests ──────
     webServer.onNotFound([]() {
         String path = webServer.uri();
+        String method = webServer.method() == HTTP_GET ? "GET" : 
+                       webServer.method() == HTTP_POST ? "POST" : 
+                       webServer.method() == HTTP_PUT ? "PUT" :
+                       webServer.method() == HTTP_DELETE ? "DELETE" : "UNKNOWN";
 
-        // Silently handle captive portal detection URLs
-        if (path == "/generate_204" || path == "/gen_204" ||
-            path == "/hotspot-detect.html" || path == "/canonical.html" ||
-            path == "/success.txt" || path == "/ncsi.txt") {
-            webServer.send(204);
-            return;
-        }
+        Serial.printf("[PORTAL] Unhandled request: %s %s\n", method.c_str(), path.c_str());
 
-        // Ignore common resource requests
-        if (path.endsWith(".ico") || path.endsWith(".png") || path.endsWith(".jpg")) {
+        // Ignore other common resource requests
+        if (path.endsWith(".png") || path.endsWith(".jpg") || path.endsWith(".css") || path.endsWith(".js")) {
             webServer.send(404);
             return;
         }
