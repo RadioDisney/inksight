@@ -213,6 +213,11 @@ void setup() {
     ledFeedback("downloading");
     bool gotFallback = false;
     bool ok = fetchBMP(false, &gotFallback);
+
+    Serial.printf("Fetch result: %s, fallback: %s\n", ok ? "OK" : "FAIL", gotFallback ? "YES" : "NO");
+
+    // gotFallback = false; // Disable fallback for now, to avoid stale content when server is down. Will re-enable after improving fallback logic.
+
     if (g_userAborted) {
         Serial.println("User aborted during fetch -> portal");
         enterPortalMode();
