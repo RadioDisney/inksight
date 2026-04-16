@@ -275,6 +275,7 @@ void setup() {
                   DEBUG_REFRESH_MIN, cfgSleepMin);
 #else
     Serial.printf("Staying awake, refresh every %d min\n", cfgSleepMin);
+    enterDeepSleep(cfgSleepMin);
 #endif
 }
 
