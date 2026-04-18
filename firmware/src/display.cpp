@@ -1,6 +1,7 @@
 #include "display.h"
 #include "config.h"
 #include "epd_driver.h"
+#include "WiFi.h"
 
 // ── Unified 5x7 pixel font ─────────────────────────────────
 // Each glyph is 5 columns x 7 rows, stored column-major.
@@ -176,7 +177,8 @@ void showSetupScreen(const char *apName) {
     int apY = H * 46 / 100;
     drawText(apName, apX, apY, apScale);
 
-    const char *line3 = "OPEN BROWSER";
+    char line3[32];
+    sprintf(line3, "BROWSER OPEN : %s", WiFi.softAPIP().toString().c_str());
     int line3X = (W - textWidth(strlen(line3), bodyScale)) / 2;
     int line3Y = H * 62 / 100;
     drawText(line3, line3X, line3Y, bodyScale);

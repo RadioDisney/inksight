@@ -128,8 +128,8 @@ static void enterPortalMode() {
     WiFi.mode(WIFI_OFF);
 
     ledFeedback("portal");
-    showSetupScreen(apName.c_str());
     startCaptivePortal();
+    showSetupScreen(apName.c_str());
     ctx.state = DeviceState::PORTAL;
     ctx.ignoreConfigButtonUntilRelease = (digitalRead(PIN_CFG_BTN) == LOW);
 }

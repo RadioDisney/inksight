@@ -299,7 +299,7 @@ void epdInit() {
     epdWaitBusy();
 #elif defined(EPD_PANEL_42_GXEPD2_M01)
 
-    esp_backtrace_print(10);
+    // esp_backtrace_print(10);
 
      /* EPD hardware init start */
     epdReset();

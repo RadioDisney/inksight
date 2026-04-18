@@ -4,15 +4,15 @@
 #include <Arduino.h>
 
 #if defined(BOARD_PROFILE_ESP32_C3)
-#define PIN_EPD_MOSI   6
-#define PIN_EPD_SCK    4
-#define PIN_EPD_CS     7
+#define PIN_EPD_MOSI   2
+#define PIN_EPD_SCK    5
+#define PIN_EPD_CS     0
 #define PIN_EPD_DC     1
-#define PIN_EPD_RST    2
-#define PIN_EPD_BUSY   10
-#define PIN_BAT_ADC    0
-#define PIN_CFG_BTN    9
-#define PIN_LED        3
+#define PIN_EPD_RST    7
+#define PIN_EPD_BUSY   4
+#define PIN_BAT_ADC    -1
+#define PIN_CFG_BTN    -1
+#define PIN_LED        8
 #elif defined(BOARD_PROFILE_ESP32_WROOM32E)
 #define PIN_EPD_MOSI   23
 #define PIN_EPD_SCK    18
