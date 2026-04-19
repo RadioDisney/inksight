@@ -22,9 +22,20 @@ String cfgPendingPairCode;
 // ── Load config from NVS ────────────────────────────────────
 
 void loadConfig() {
-    prefs.begin("inksight", true);  // read-only
+    if (!prefs.begin("inksight", true)) {  // read-only
+        Serial.println("[STORAGE] Failed to open NVS namespace 'inksight'");
+        cfgSSID = "";
+        cfgPass = "";
+        cfgServer = DEFAULT_SERVER;
+        cfgSleepMin = 60;
+        cfgConfigJson = "";
+        cfgDeviceToken = "";
+        cfgPendingPairCode = "";
+        return;
+    }
 
     int version = prefs.getInt("cfg_version", 0);
+    Serial.printf("[STORAGE] cfg_version=%d (expected %d)\n", version, CONFIG_VERSION);
     if (version != CONFIG_VERSION) {
         Serial.printf("Config version mismatch (%d != %d), using defaults\n",
                       version, CONFIG_VERSION);
@@ -39,14 +50,17 @@ void loadConfig() {
         return;
     }
 
-    cfgSSID         = prefs.getString("ssid", "");
-    cfgPass         = prefs.getString("pass", "");
-    cfgServer       = prefs.getString("server", DEFAULT_SERVER);
+    cfgSSID         = prefs.isKey("ssid") ? prefs.getString("ssid", "") : "";
+    cfgPass         = prefs.isKey("pass") ? prefs.getString("pass", "") : "";
+    cfgServer       = prefs.isKey("server") ? prefs.getString("server", DEFAULT_SERVER) : DEFAULT_SERVER;
     cfgSleepMin     = prefs.getInt("sleep_min", 60);
-    cfgConfigJson   = prefs.getString("config_json", "");
-    cfgDeviceToken  = prefs.getString("device_token", "");
-    cfgPendingPairCode = prefs.getString("pair_code", "");
+    cfgConfigJson   = prefs.isKey("config_json") ? prefs.getString("config_json", "") : "";
+    cfgDeviceToken  = prefs.isKey("device_token") ? prefs.getString("device_token", "") : "";
+    cfgPendingPairCode = prefs.isKey("pair_code") ? prefs.getString("pair_code", "") : "";
     prefs.end();
+
+    Serial.printf("[STORAGE] Loaded: ssid='%s' server='%s' sleep=%d token_len=%d\n",
+                  cfgSSID.c_str(), cfgServer.c_str(), cfgSleepMin, cfgDeviceToken.length());
 
     // Sanity checks
     if (cfgSleepMin < 10 || cfgSleepMin > 1440) {
@@ -78,9 +92,9 @@ void resetRetryCount() {
 
 bool isFirstInstallLiveModePending() {
     prefs.begin("inksight", true);
-    String marker = prefs.getString(KEY_LIVE_BOOT_MARKER_NEW, "");
+    String marker = prefs.isKey(KEY_LIVE_BOOT_MARKER_NEW) ? prefs.getString(KEY_LIVE_BOOT_MARKER_NEW, "") : "";
     if (marker.length() == 0) {
-        marker = prefs.getString(KEY_LIVE_BOOT_MARKER_OLD, "");
+        marker = prefs.isKey(KEY_LIVE_BOOT_MARKER_OLD) ? prefs.getString(KEY_LIVE_BOOT_MARKER_OLD, "") : "";
     }
     prefs.end();
     return marker != String(LIVE_BOOT_MARKER);
@@ -102,6 +116,14 @@ void saveWiFiConfig(const String &ssid, const String &pass) {
     prefs.end();
     cfgSSID = ssid;
     cfgPass = pass;
+    Serial.printf("[STORAGE] WiFi saved: ssid='%s'\n", ssid.c_str());
+
+    // Verify write
+    prefs.begin("inksight", true);
+    String verify = prefs.getString("ssid", "");
+    int verVersion = prefs.getInt("cfg_version", 0);
+    prefs.end();
+    Serial.printf("[STORAGE] Verify: ssid='%s' cfg_version=%d\n", verify.c_str(), verVersion);
 }
 
 // ── Save server URL ─────────────────────────────────────────
