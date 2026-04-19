@@ -10,8 +10,8 @@
 #define PIN_EPD_DC     1
 #define PIN_EPD_RST    7
 #define PIN_EPD_BUSY   4
-#define PIN_BAT_ADC    -1
-#define PIN_CFG_BTN    -1
+#define PIN_BAT_ADC    3
+#define PIN_CFG_BTN    9
 #define PIN_LED        8
 #elif defined(BOARD_PROFILE_ESP32_WROOM32E)
 #define PIN_EPD_MOSI   23
